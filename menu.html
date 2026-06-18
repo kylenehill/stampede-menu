@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0" />
+  <title>Drink Menu</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #f0f0f0;
+      font-family: 'Inter', sans-serif;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 60px;
+      background: linear-gradient(90deg, #1a1a1a, #222);
+      border-bottom: 3px solid #c8a84b;
+      height: 100px;
+    }
+
+    #header .venue-logo {
+      height: 80px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    #header .section-label {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px;
+      letter-spacing: 3px;
+      color: #ffffff;
+      opacity: 0.9;
+    }
+
+    #header .clock {
+      font-size: 28px;
+      font-weight: 600;
+      color: #aaa;
+      min-width: 120px;
+      text-align: right;
+    }
+
+    /* ── SECTION DOTS ── */
+    #section-dots {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 0 6px;
+      background: #111;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #444;
+      transition: background 0.3s;
+    }
+
+    .dot.active {
+      background: #c8a84b;
+    }
+
+    /* ── GRID ── */
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 16px;
+      padding: 20px 50px;
+      height: calc(100vh - 90px - 36px);
+      box-sizing: border-box;
+    }
+
+    /* ── CARD ── */
+    .card {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: #1c1c1c;
+      border: 1px solid #2e2e2e;
+      border-radius: 14px;
+      padding: 16px 20px;
+      transition: opacity 0.4s;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .card:hover {
+      border-color: #c8a84b44;
+    }
+
+    .card-logo {
+      width: clamp(48px, 5vw, 80px);
+      height: clamp(48px, 5vw, 80px);
+      border-radius: 50%;
+      object-fit: cover;
+      background: #2a2a2a;
+      flex-shrink: 0;
+      border: 2px solid #333;
+    }
+
+    .card-logo-placeholder {
+      width: clamp(48px, 5vw, 80px);
+      height: clamp(48px, 5vw, 80px);
+      border-radius: 50%;
+      background: #2a2a2a;
+      flex-shrink: 0;
+      border: 2px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .card-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .card-name {
+      font-size: clamp(13px, 1.4vw, 20px);
+      font-weight: 700;
+      color: #f0f0f0;
+      line-height: 1.2;
+    }
+
+    .card-desc {
+      font-size: clamp(11px, 1vw, 15px);
+      color: #999;
+      margin-top: 3px;
+    }
+
+    .card-abv {
+      font-size: clamp(16px, 1.8vw, 26px);
+      font-weight: 700;
+      color: #c8a84b;
+      flex-shrink: 0;
+      text-align: right;
+      min-width: 55px;
+    }
+
+    .card-abv span {
+      display: block;
+      font-size: clamp(9px, 0.8vw, 12px);
+      font-weight: 400;
+      color: #666;
+      text-align: right;
+    }
+
+    /* ── PROGRESS BAR ── */
+    #progress-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 4px;
+      background: #c8a84b;
+      width: 0%;
+      transition: width linear;
+    }
+
+    /* ── FADE ── */
+    #grid.fade-out { opacity: 0; transition: opacity 0.4s; }
+    #grid.fade-in  { opacity: 1; transition: opacity 0.4s; }
+
+    /* ── STATUS ── */
+    #status {
+      position: fixed;
+      bottom: 10px;
+      right: 20px;
+      font-size: 12px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <img src="logo.png" class="venue-logo" alt="Stampede" />
+    <div class="section-label" id="section-title">Loading…</div>
+    <div class="clock" id="clock"></div>
+  </div>
+
+  <div id="section-dots"></div>
+
+  <div id="grid"></div>
+
+  <div id="progress-bar"></div>
+  <div id="status">–</div>
+
+  <script>
+    // ─────────────────────────────────────────────
+    // CONFIG — edit these if needed
+    // ─────────────────────────────────────────────
+    const ITEMS_PER_PAGE = 12;      // cards per screen (3 cols × 4 rows)
+    const ROTATE_SEC     = 10;      // seconds per slide
+    const REFRESH_MIN    = 2;       // how often to re-fetch the sheet (minutes)
+    // ─────────────────────────────────────────────
+
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR_T5heWUtL7xTWt5gJ2jT7DhJPjTmbTn-aYYw2_YdfbcQAgB_OlkI0Vyn0GtsYSzqdALQXmxg4Wdrx/pub?gid=0&single=true&output=csv';
+
+    // Merge sheet section names into display section names
+    const SECTION_MAP = {
+      'Bottled/Canned Seltzers': 'Bottles & Cans',
+      'Non-Alcoholic':           'Bottles & Cans',
+      'Bottled/Canned Beer':     'Bottles & Cans',
+      'Wine On Tap':             'Wine',
+      'Wine By Glass/Bottle':    'Wine',
+    };
+
+    let sections   = [];   // [{ name, items[] }]
+    let slideIndex = 0;    // which slide we're on (across all sections)
+    let slides     = [];   // flat list of { sectionName, items[] }
+    let rotateTimer, progressTimer;
+
+    // Convert Google Drive share URL → direct image URL
+    function driveUrl(raw) {
+      if (!raw) return null;
+      const m = raw.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (!m) return null;
+      return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w200`;
+    }
+
+    // Parse CSV text into array of row objects
+    function parseCsv(text) {
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      return lines.slice(1).map(line => {
+        // handle quoted commas
+        const cols = [];
+        let cur = '', inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (c === '"') { inQ = !inQ; }
+          else if (c === ',' && !inQ) { cols.push(cur); cur = ''; }
+          else { cur += c; }
+        }
+        cols.push(cur);
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = (cols[i] || '').trim().replace(/^"|"$/g, ''));
+        return obj;
+      }).filter(r => r.Title);
+    }
+
+    // Group rows into sections, build slides
+    function buildSlides(rows) {
+      const map = {};
+      const order = [];
+      rows.forEach(r => {
+        const raw = r.Section || 'Other';
+        const s = SECTION_MAP[raw] || raw;
+        if (!map[s]) { map[s] = []; order.push(s); }
+        map[s].push(r);
+      });
+
+      sections = order.map(name => ({ name, items: map[name] }));
+
+      slides = [];
+      sections.forEach(sec => {
+        for (let i = 0; i < sec.items.length; i += ITEMS_PER_PAGE) {
+          slides.push({ sectionName: sec.name, items: sec.items.slice(i, i + ITEMS_PER_PAGE) });
+        }
+      });
+    }
+
+    // Render dots
+    function renderDots() {
+      const el = document.getElementById('section-dots');
+      el.innerHTML = slides.map((_, i) =>
+        `<div class="dot ${i === slideIndex ? 'active' : ''}"></div>`
+      ).join('');
+    }
+
+    // Emoji fallback icons by category
+    function guessEmoji(desc, section) {
+      const d = (desc + section).toLowerCase();
+      if (d.includes('stout') || d.includes('porter')) return '🍺';
+      if (d.includes('ipa') || d.includes('hazy')) return '🍻';
+      if (d.includes('lager') || d.includes('pilsner')) return '🍺';
+      if (d.includes('cider')) return '🍎';
+      if (d.includes('seltzer') || d.includes('hard selt')) return '💧';
+      if (d.includes('premixed') || d.includes('cocktail')) return '🥃';
+      if (d.includes('chardonnay') || d.includes('riesling') || d.includes('white')) return '🥂';
+      if (d.includes('rose') || d.includes('blush')) return '🌸';
+      if (d.includes('wine') || d.includes('cabernet') || d.includes('merlot') || d.includes('zinfandel') || d.includes('pinot')) return '🍷';
+      if (d.includes('non-alcoholic') || d.includes('0.0')) return '🧃';
+      return '🍺';
+    }
+
+    // Render the current slide
+    function renderSlide() {
+      if (!slides.length) return;
+      const slide = slides[slideIndex];
+      const grid  = document.getElementById('grid');
+      const title = document.getElementById('section-title');
+
+      grid.classList.add('fade-out');
+
+      setTimeout(() => {
+        title.textContent = slide.sectionName;
+        renderDots();
+
+        grid.innerHTML = slide.items.map(item => {
+          const imgUrl = driveUrl(item.Icon);
+          const abv    = item.ABV && item.ABV !== '-' ? item.ABV : '—';
+          const imgTag = imgUrl
+            ? `<img class="card-logo" src="${imgUrl}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+            : '';
+          const placeholder = `<div class="card-logo-placeholder" style="${imgUrl ? 'display:none' : ''}">${guessEmoji(item.Description, item.Section)}</div>`;
+
+          return `
+            <div class="card">
+              ${imgTag}
+              ${placeholder}
+              <div class="card-info">
+                <div class="card-name">${item.Title}</div>
+                <div class="card-desc">${item.Description}</div>
+              </div>
+              <div class="card-abv">${abv}<span>ABV</span></div>
+            </div>`;
+        }).join('');
+
+        grid.classList.remove('fade-out');
+        grid.classList.add('fade-in');
+        setTimeout(() => grid.classList.remove('fade-in'), 400);
+      }, 400);
+    }
+
+    // Advance to next slide
+    function nextSlide() {
+      slideIndex = (slideIndex + 1) % slides.length;
+      renderSlide();
+      startProgress();
+    }
+
+    // Animated progress bar
+    function startProgress() {
+      const bar = document.getElementById('progress-bar');
+      bar.style.transition = 'none';
+      bar.style.width = '0%';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          bar.style.transition = `width ${ROTATE_SEC}s linear`;
+          bar.style.width = '100%';
+        });
+      });
+    }
+
+    // Fetch & reload data from sheet
+    async function fetchData() {
+      try {
+        document.getElementById('status').textContent = 'Refreshing…';
+        const res  = await fetch(CSV_URL + '&cachebust=' + Date.now());
+        const text = await res.text();
+        const rows = parseCsv(text);
+        buildSlides(rows);
+        // Keep current slide index in range
+        if (slideIndex >= slides.length) slideIndex = 0;
+        renderSlide();
+        document.getElementById('status').textContent = 'Updated ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        document.getElementById('status').textContent = 'Fetch error: ' + e.message;
+      }
+    }
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent =
+        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ── INIT ──
+    (async () => {
+      updateClock();
+      setInterval(updateClock, 10000);
+
+      await fetchData();
+      renderSlide();
+      startProgress();
+
+      // Auto-rotate
+      rotateTimer = setInterval(nextSlide, ROTATE_SEC * 1000);
+
+      // Auto-refresh data
+      setInterval(fetchData, REFRESH_MIN * 60 * 1000);
+    })();
+  </script>
+</body>
+</html>
