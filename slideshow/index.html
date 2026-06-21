@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stampede Slideshow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Two slides sit on top of each other — we crossfade by sliding */
+    #slideshow {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;  /* contain keeps full flyer visible; change to cover to fill screen */
+      transform: translateX(100%);
+      transition: transform 0.8s cubic-bezier(0.77, 0, 0.18, 1);
+      will-change: transform;
+    }
+
+    .slide.active {
+      transform: translateX(0%);
+    }
+
+    .slide.exiting {
+      transform: translateX(-100%);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="slideshow"></div>
+
+  <script>
+    const DISPLAY_SEC  = 20;    // seconds each slide stays visible
+    const SLIDE_JSON   = 'slides.json';
+
+    let slides   = [];
+    let current  = 0;
+    let imgEls   = [];   // [img A, img B] — we alternate between two elements
+
+    async function loadSlides() {
+      const res  = await fetch(SLIDE_JSON + '?v=' + Date.now());
+      slides = await res.json();
+    }
+
+    function buildElements() {
+      const ss = document.getElementById('slideshow');
+      ss.innerHTML = '';
+      imgEls = [document.createElement('img'), document.createElement('img')];
+      imgEls.forEach(el => {
+        el.className = 'slide';
+        ss.appendChild(el);
+      });
+    }
+
+    function showSlide(index, activeEl, exitEl) {
+      // Pre-load the incoming slide off-screen right
+      activeEl.src = slides[index];
+      activeEl.className = 'slide'; // reset (translateX 100%)
+
+      // Force reflow so transition fires
+      activeEl.getBoundingClientRect();
+
+      // Slide in new, slide out old
+      activeEl.classList.add('active');
+      if (exitEl.src) exitEl.classList.add('exiting');
+    }
+
+    async function start() {
+      await loadSlides();
+      if (!slides.length) return;
+
+      buildElements();
+
+      let active = 0; // index into imgEls (alternates 0/1)
+
+      // Show first slide immediately (no exit)
+      imgEls[active].src = slides[current];
+      imgEls[active].className = 'slide active';
+
+      setInterval(() => {
+        const next    = (active + 1) % 2;
+        const nextIdx = (current + 1) % slides.length;
+
+        showSlide(nextIdx, imgEls[next], imgEls[active]);
+
+        current = nextIdx;
+        active  = next;
+      }, DISPLAY_SEC * 1000);
+    }
+
+    start();
+  </script>
+</body>
+</html>
