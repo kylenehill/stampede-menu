@@ -257,7 +257,10 @@
         map[s].push(r);
       });
 
-      sections = order.map(name => ({ name, items: map[name] }));
+      sections = order.map(name => ({
+        name,
+        items: map[name].sort((a, b) => a.Title.localeCompare(b.Title))
+      }));
 
       slides = [];
       sections.forEach(sec => {
