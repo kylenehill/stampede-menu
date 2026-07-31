@@ -210,14 +210,7 @@
 
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR_T5heWUtL7xTWt5gJ2jT7DhJPjTmbTn-aYYw2_YdfbcQAgB_OlkI0Vyn0GtsYSzqdALQXmxg4Wdrx/pub?gid=0&single=true&output=csv';
 
-    // Merge sheet section names into display section names
-    const SECTION_MAP = {
-      'Bottled/Canned Seltzers': 'Bottles & Cans',
-      'Non-Alcoholic':           'Bottles & Cans',
-      'Bottled/Canned Beer':     'Bottles & Cans',
-      'Wine On Tap':             'Wine',
-      'Wine By Glass/Bottle':    'Wine',
-    };
+    const SECTION_MAP = {};
 
     let sections   = [];   // [{ name, items[] }]
     let slideIndex = 0;    // which slide we're on (across all sections)
