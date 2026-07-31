@@ -213,7 +213,7 @@
     async function load() {
       let text;
       try {
-        const res = await fetch(CSV_URL + '?v=' + Date.now());
+        const res = await fetch(CSV_URL + '&v=' + Date.now());
         text = await res.text();
       } catch (e) {
         document.getElementById('loading').innerHTML =
