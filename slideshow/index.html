@@ -14,97 +14,111 @@
       overflow: hidden;
     }
 
-    /* Two slides sit on top of each other — we crossfade by sliding */
-    #slideshow {
-      position: relative;
-      width: 100%;
-      height: 100%;
+    /* Two stacked slides; the active one fades in over the other */
+    .slide {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      opacity: 0;
+      transition: opacity 0.8s;
+      overflow: hidden;
     }
 
-    .slide {
+    .slide.show { opacity: 1; z-index: 1; }
+
+    /* Blurred copy of the image fills the screen behind it */
+    .slide .bg {
+      position: absolute;
+      inset: -40px;
+      width: calc(100% + 80px);
+      height: calc(100% + 80px);
+      object-fit: cover;
+      filter: blur(30px) brightness(0.4);
+    }
+
+    .slide .img {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain;  /* contain keeps full flyer visible; change to cover to fill screen */
-      transform: translateX(100%);
-      transition: transform 0.8s cubic-bezier(0.77, 0, 0.18, 1);
-      will-change: transform;
+      object-fit: contain;
     }
 
-    .slide.active {
-      transform: translateX(0%);
-    }
-
-    .slide.exiting {
-      transform: translateX(-100%);
+    #status {
+      position: fixed;
+      bottom: 10px;
+      right: 20px;
+      font: 12px sans-serif;
+      color: #333;
+      z-index: 2;
     }
   </style>
 </head>
 <body>
 
-  <div id="slideshow"></div>
+  <div class="slide"><img class="bg" alt="" /><img class="img" alt="" /></div>
+  <div class="slide"><img class="bg" alt="" /><img class="img" alt="" /></div>
+  <div id="status"></div>
 
   <script>
-    const DISPLAY_SEC  = 20;    // seconds each slide stays visible
-    const SLIDE_JSON   = 'slides.json';
+    // Shows every image listed in stampede-site's images/slider/manifest.json
+    // (the same list the website's slider uses). Add an image to that folder and
+    // list it in manifest.json, and the screen picks it up on its next refresh.
+    const DISPLAY_SEC = 20;   // seconds each image stays up
+    const REFRESH_MIN = 10;   // how often to re-check the image list
+    const SOURCES = [
+      'https://stampedelivermore.com/images/slider/',
+      'https://raw.githubusercontent.com/kylenehill/stampede-site/main/images/slider/',
+    ];
 
-    let slides   = [];
-    let current  = 0;
-    let imgEls   = [];   // [img A, img B] — we alternate between two elements
+    let images  = [];
+    let index   = -1;
+    let active  = 0;
+    let version = Date.now();
+    const slideEls = document.querySelectorAll('.slide');
 
-    async function loadSlides() {
-      const res  = await fetch(SLIDE_JSON + '?v=' + Date.now());
-      slides = await res.json();
+    async function fetchImages() {
+      for (const base of SOURCES) {
+        try {
+          const res = await fetch(base + 'manifest.json?v=' + Date.now());
+          if (!res.ok) continue;
+          const files = await res.json();
+          if (!Array.isArray(files) || !files.length) continue;
+          images = files.map(f => base + encodeURIComponent(f));
+          version = Date.now();
+          document.getElementById('status').textContent = '';
+          return;
+        } catch (e) { /* try the next source */ }
+      }
+      document.getElementById('status').textContent = 'Could not load slider images';
     }
 
-    function buildElements() {
-      const ss = document.getElementById('slideshow');
-      ss.innerHTML = '';
-      imgEls = [document.createElement('img'), document.createElement('img')];
-      imgEls.forEach(el => {
-        el.className = 'slide';
-        ss.appendChild(el);
-      });
+    function nextSlide(failures = 0) {
+      if (!images.length || failures >= images.length) return;
+      index = (index + 1) % images.length;
+      const src  = images[index] + '?v=' + version;
+      const next = slideEls[1 - active];
+      const img  = next.querySelector('.img');
+
+      // Swap only once the new image has loaded, so the screen never flashes black
+      img.onload = () => {
+        img.onload = img.onerror = null;
+        next.classList.add('show');
+        slideEls[active].classList.remove('show');
+        active = 1 - active;
+      };
+      img.onerror = () => nextSlide(failures + 1);  // skip a broken image
+      next.querySelector('.bg').src = src;
+      img.src = src;
     }
 
-    function showSlide(index, activeEl, exitEl) {
-      // Pre-load the incoming slide off-screen right
-      activeEl.src = slides[index];
-      activeEl.className = 'slide'; // reset (translateX 100%)
-
-      // Force reflow so transition fires
-      activeEl.getBoundingClientRect();
-
-      // Slide in new, slide out old
-      activeEl.classList.add('active');
-      if (exitEl.src) exitEl.classList.add('exiting');
-    }
-
-    async function start() {
-      await loadSlides();
-      if (!slides.length) return;
-
-      buildElements();
-
-      let active = 0; // index into imgEls (alternates 0/1)
-
-      // Show first slide immediately (no exit)
-      imgEls[active].src = slides[current];
-      imgEls[active].className = 'slide active';
-
-      setInterval(() => {
-        const next    = (active + 1) % 2;
-        const nextIdx = (current + 1) % slides.length;
-
-        showSlide(nextIdx, imgEls[next], imgEls[active]);
-
-        current = nextIdx;
-        active  = next;
-      }, DISPLAY_SEC * 1000);
-    }
-
-    start();
+    (async () => {
+      await fetchImages();
+      active = 1;  // so the first slide lands on slideEls[0]
+      nextSlide();
+      setInterval(nextSlide, DISPLAY_SEC * 1000);
+      setInterval(fetchImages, REFRESH_MIN * 60 * 1000);
+    })();
   </script>
 </body>
 </html>
